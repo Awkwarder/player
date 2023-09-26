@@ -3,9 +3,21 @@ using System.Collections.Generic;
 using System.IO;
 using System.Runtime.InteropServices;
 using UnityEngine;
+using UnityEngine.Android;
+
 
 public class player : MonoBehaviour
 {
+
+    struct YUVFrame
+    {
+        [MarshalAs(UnmanagedType.ByValArray, SizeConst = 1920*1080)]
+        public byte[] data_y;
+        [MarshalAs(UnmanagedType.ByValArray, SizeConst = 1920*1080/4)]
+        public byte[] data_u;
+        [MarshalAs(UnmanagedType.ByValArray, SizeConst = 1920*1080/4)]
+        public byte[] data_v;
+    };
     // Start is called before the first frame update
     public Material mat;
     public Camera _camera;
@@ -25,22 +37,82 @@ public class player : MonoBehaviour
     private byte[] frameY;
     private byte[] frameU;
     private byte[] frameV;
-    FileStream Video;
 
-    /*
-    [DllImport("libPlayerStreaming")]
+    YUVFrame yuvFrame;
+
+    [DllImport("playerstreaming")]
     private static extern int PlayerInit();
 
-    [DllImport("libPlayerStreaming")]
-    private static extern int PlayerRun(int num);
+    [DllImport("playerstreaming")]
+    private static extern int PlayerRun(int num,ref YUVFrame yuvfrmae);
 
-    [DllImport("libPlayerStreaming")]
+    [DllImport("playerstreaming")]
     private static extern int PlayerDeInit();
-    */
+    void Awake(){
+        Debug.Log("UnityClientPlayer Awake begin");
+        if (!Permission.HasUserAuthorizedPermission(Permission.ExternalStorageWrite))
+        {
+            Debug.Log("UnityClientPlayer Awake ExternalStorageWrite");
+            Permission.RequestUserPermission(Permission.ExternalStorageWrite);
+        }
+        if (!Permission.HasUserAuthorizedPermission(Permission.ExternalStorageRead))
+        {
+            Debug.Log("UnityClientPlayer Awake ExternalStorageRead");
+            Permission.RequestUserPermission(Permission.ExternalStorageRead);
+        }
+        
+        if (!Permission.HasUserAuthorizedPermission(Permission.Camera))
+        {
+            Debug.Log("UnityClientPlayer Awake Camera");
+            Permission.RequestUserPermission(Permission.Camera);
+        }
+        Debug.Log("UnityClientPlayer Awake finish");
+
+    }
+
     void Start()
     {
-        //PlayerInit();
-        VideoPath = Application.dataPath + "/player/input.yuv";
+        Debug.Log("UnityClientPlayer Start begin");
+
+            if (Permission.HasUserAuthorizedPermission(Permission.ExternalStorageWrite))
+            {
+                // 权限已授予，执行相应操作
+                Debug.Log("UnityClientPlayer Storage write permission granted");
+            }
+            else
+            {
+                // 权限被拒绝，执行相应操作
+                Debug.Log("UnityClientPlayer Storage write permission denied");
+            }
+            if (Permission.HasUserAuthorizedPermission(Permission.ExternalStorageRead))
+            {
+                // 权限已授予，执行相应操作
+                Debug.Log("UnityClientPlayer Storage read permission granted");
+            }
+            else
+            {
+                // 权限被拒绝，执行相应操作
+                Debug.Log("UnityClientPlayer Storage read permission denied");
+            }
+            if (Permission.HasUserAuthorizedPermission(Permission.Camera))
+            {
+                // 权限已授予，执行相应操作
+                Debug.Log("UnityClientPlayer Camera permission granted");
+            }
+            else
+            {
+                // 权限被拒绝，执行相应操作
+                Debug.Log("UnityClientPlayer Camera permission denied");
+            }
+        
+
+        string str1 = "Good Morning!";//需要写入的字符串
+        
+        File.WriteAllText(@"sdcard/Download/Utest.txt", str1);
+
+        
+        int ret = PlayerInit();
+        Debug.LogFormat("UnityClientPlayer ret = {0}",ret);
         TexY = new Texture2D(Width, Height, TextureFormat.Alpha8, false);
         TexU = new Texture2D(Width >> 1, Height >> 1, TextureFormat.Alpha8, false);
         TexV = new Texture2D(Width >> 1, Height >> 1, TextureFormat.Alpha8, false);
@@ -53,23 +125,34 @@ public class player : MonoBehaviour
 
         frameV = new byte[Width * Height >> 2];
 
-        Video = new FileStream(VideoPath, FileMode.Open);
+        //Video = new FileStream(VideoPath, FileMode.Open);
+
+        yuvFrame = new YUVFrame();
+
+        yuvFrame.data_y =new byte[1920*1080];
+
+        yuvFrame.data_u =new byte[1920*1080/4];
+
+        yuvFrame.data_v =new byte[1920*1080/4];
+        Debug.Log("UnityClientPlayer Start finish");
 
     }
 
     // Update is called once per frame
     void Update()
     {
+        Debug.Log("UnityClientPlayer Updata begin");
 
         float b = 0;
-        int a = FrameNo;
-        //int a = PlayerRun(FrameNo);
+        //int a = FrameNo;
+        int a = PlayerRun(FrameNo,ref yuvFrame);
+        Debug.Log("UnityClientPlayer PlayerRun run finish");
         if(a % 100 == 0 || a % 101 == 0 || a % 102 == 0|| a % 103 == 0 || a % 104 == 0 || a % 105 == 0)
         {
             b = 1f;
         }
 
-        LoadNV12(FrameNo);
+        CallbackYUV();
         
         mat.SetFloat("_b", b);
         mat.SetTexture("_TexY",TexY);
@@ -78,44 +161,27 @@ public class player : MonoBehaviour
 
         
         FrameNo++;
+        Debug.Log("UnityClientPlayer Updata finish");
     }
 
-    void LoadNV12(int frmaeNo)
-    {
-        try
-        {
-
-                
-            Video.Read(frameY, 0,FrmaeSize * 2 /3);
-            Video.Read(frameU, 0,FrmaeSize/6);
-            Video.Read(frameV,0,FrmaeSize/6);
-
-         
-            TexY.LoadRawTextureData(frameY);
-            TexU.LoadRawTextureData(frameV);
-            TexV.LoadRawTextureData(frameU);
 
 
+    void CallbackYUV(){
+        Debug.Log("UnityClientPlayer CallbackYUV begin");
+        TexY.LoadRawTextureData(yuvFrame.data_y);
+        TexU.LoadRawTextureData(yuvFrame.data_v);
+        TexV.LoadRawTextureData(yuvFrame.data_u);
 
-            TexY.Apply();                
-            TexU.Apply();
-            TexV.Apply();
-                
-
-        }
-        catch (System.Exception e)
-        {
-            Debug.LogError(e.ToString());
-        }
-            
-       
-
-
+        TexY.Apply();                
+        TexU.Apply();
+        TexV.Apply();
+        Debug.Log("UnityClientPlayer CallbackYUV finish");
     }
 
     void OnDestroy()
     {
-        //PlayerDeInit();
-        Video.Close();
+        Debug.Log("UnityClientPlayer OnDestroy begin");
+        PlayerDeInit();
+        Debug.Log("UnityClientPlayer OnDestroy finish");
     }
 }
