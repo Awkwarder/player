@@ -60,12 +60,7 @@ public class player : MonoBehaviour
             Debug.Log("UnityClientPlayer Awake ExternalStorageRead");
             Permission.RequestUserPermission(Permission.ExternalStorageRead);
         }
-        
-        if (!Permission.HasUserAuthorizedPermission(Permission.Camera))
-        {
-            Debug.Log("UnityClientPlayer Awake Camera");
-            Permission.RequestUserPermission(Permission.Camera);
-        }
+         
         Debug.Log("UnityClientPlayer Awake finish");
 
     }
@@ -94,21 +89,7 @@ public class player : MonoBehaviour
                 // 权限被拒绝，执行相应操作
                 Debug.Log("UnityClientPlayer Storage read permission denied");
             }
-            if (Permission.HasUserAuthorizedPermission(Permission.Camera))
-            {
-                // 权限已授予，执行相应操作
-                Debug.Log("UnityClientPlayer Camera permission granted");
-            }
-            else
-            {
-                // 权限被拒绝，执行相应操作
-                Debug.Log("UnityClientPlayer Camera permission denied");
-            }
-        
-
-        string str1 = "Good Morning!";//需要写入的字符串
-        
-        File.WriteAllText(@"sdcard/Download/Utest.txt", str1);
+    
 
         
         int ret = PlayerInit();
